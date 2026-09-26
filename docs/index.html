@@ -1140,6 +1140,33 @@
         <h2>Tracked World Blips</h2>
         <div class="blip-list" id="blipList"></div>
       </div>
+
+      <div class="card" style="border-left: 3px solid #38b000; font-size: 0.85rem;">
+        <h2>Performance Benchmarks (vs CEF Minimap)</h2>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+          <span style="color: var(--text-muted);">500 Blip Radar Pipeline:</span>
+          <span style="color: #38b000; font-weight: 700; font-family: var(--font-mono);">8.08 µs (123k fps)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+          <span style="color: var(--text-muted);">CEF / NUI Canvas:</span>
+          <span style="color: var(--text-muted); font-family: var(--font-mono);">~4-8 ms (500× faster)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+          <span style="color: var(--text-muted);">Per-Blip Math &amp; Clamp:</span>
+          <span style="color: #0077b6; font-family: var(--font-mono);">16.17 ns (61M/s)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+          <span style="color: var(--text-muted);">GPS Vector Route Clip:</span>
+          <span style="color: #ffb703; font-family: var(--font-mono);">3.23 ns (309M/s)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.6rem;">
+          <span style="color: var(--text-muted);">HUD Arc Ring Synthesis:</span>
+          <span style="color: #9d4edd; font-family: var(--font-mono);">54.13 ns (18M/s)</span>
+        </div>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 0.5rem; text-align: right;">
+          <a href="https://github.com/bhubbard/vhud-rs/blob/main/BENCHMARKS.md" target="_blank" style="color: #0077b6; text-decoration: none; font-weight: 600; font-size: 0.75rem;">View Full Benchmarks Report &rarr;</a>
+        </div>
+      </div>
     </aside>
   </main>
 
