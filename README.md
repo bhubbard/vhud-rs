@@ -2,7 +2,8 @@
 
 [![Crates.io](https://img.shields.io/crates/v/vhud-rs.svg)](https://crates.io/crates/vhud-rs)
 [![Documentation](https://docs.rs/vhud-rs/badge.svg)](https://docs.rs/vhud-rs)
-[![Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen)](https://bhubbard.github.io/vhud-rs)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fcode.brandonhubbard.com%2Fvhud-rs%2F&label=website)](https://code.brandonhubbard.com/vhud-rs/)
+[![Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen)](https://code.brandonhubbard.com/vhud-rs/)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/bhubbard/vhud-rs)
 
@@ -12,7 +13,7 @@ Designed for game developers, custom HUD overlays, simulators, and GTA-style nav
 
 ---
 
-### [🎮 Explore the Live Interactive Simulator](https://bhubbard.github.io/vhud-rs)
+### [🎮 Explore the Live Interactive Simulator](https://code.brandonhubbard.com/vhud-rs/)
 
 ---
 
