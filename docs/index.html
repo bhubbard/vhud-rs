@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vhud-rs | Pure Rust GTA V Radar & Minimap Engine</title>
+  <style>
+    :root {
+      --bg-dark: #0d1117;
+      --panel-bg: rgba(22, 27, 34, 0.88);
+      --border-color: #30363d;
+      --accent-purple: #9d4edd;
+      --accent-green: #38b000;
+      --accent-blue: #0077b6;
+      --accent-yellow: #ffb703;
+      --accent-red: #e63946;
+      --text-main: #f0f6fc;
+      --text-muted: #8b949e;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: rgba(13, 17, 23, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .badge-rust {
+      background: linear-gradient(135deg, #e76f51, #f4a261);
+      color: #000;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.9rem;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-main);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+      padding: 1.5rem 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .canvas-container {
+      background: #080a0f;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 600px;
+      box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+    }
+
+    #hudCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .overlay-controls {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      padding: 0.4rem;
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+
+    .btn {
+      background: #21262d;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+
+    .btn.active {
+      background: var(--accent-purple);
+      border-color: #c77dff;
+      color: #fff;
+    }
+
+    .keyboard-hint {
+      position: absolute;
+      bottom: 1rem;
+      left: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.6);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #21262d;
+      pointer-events: none;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.15rem;
+      backdrop-filter: blur(8px);
+    }
+
+    .card h2 {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .stat-item {
+      background: rgba(13, 17, 23, 0.6);
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #21262d;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 0.15rem;
+    }
+
+    .control-row {
+      margin-bottom: 0.85rem;
+    }
+
+    .control-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #30363d;
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(157, 78, 221, 0.8);
+    }
+
+    .blip-list {
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .blip-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(13, 17, 23, 0.6);
+      padding: 0.45rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      border-left: 3px solid transparent;
+    }
+
+    .blip-item.waypoint { border-left-color: var(--accent-purple); }
+    .blip-item.cop { border-left-color: var(--accent-blue); }
+    .blip-item.enemy { border-left-color: var(--accent-red); }
+    .blip-item.mission { border-left-color: var(--accent-yellow); }
+
+    .tag {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+    }
+
+    .tag-clamped {
+      background: rgba(230, 57, 70, 0.2);
+      color: #ff8fa3;
+    }
+
+    .tag-inside {
+      background: rgba(56, 176, 0, 0.2);
+      color: #70e000;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-color);
+    }
+
+    footer a {
+      color: var(--accent-purple);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-container">
+      <span class="badge-rust">vhud-rs</span>
+      <h1>GTA V Minimap & Radar Simulator</h1>
+    </div>
+    <div class="nav-links">
+      <a href="https://github.com/bhubbard/vhud-rs" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://docs.rs/vhud-rs" target="_blank" rel="noopener">Docs.rs</a>
+      <a href="https://crates.io/crates/vhud-rs" target="_blank" rel="noopener">Crates.io</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="canvas-container" id="container">
+      <div class="overlay-controls">
+        <button class="btn active" id="btnCircular">Circular (Default)</button>
+        <button class="btn" id="btnRectangular">Rectangular (Expanded)</button>
+        <button class="btn" id="btnSpawnCop">+ Cop Chase</button>
+        <button class="btn" id="btnRandomTarget">New Destination</button>
+      </div>
+      <canvas id="hudCanvas"></canvas>
+      <div class="keyboard-hint">
+        WASD: Move Player | Arrow Keys / Drag: Turn Heading | Shift: Sprint / Boost
+      </div>
+    </div>
+
+    <aside class="sidebar">
+      <div class="card">
+        <h2>Telemetry & Math</h2>
+        <div class="stat-grid">
+          <div class="stat-item">
+            <div class="stat-label">Velocity</div>
+            <div class="stat-value" id="valSpeed">0 km/h</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Radar Zoom (Sz)</div>
+            <div class="stat-value" id="valZoom">1.20x</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Player Heading</div>
+            <div class="stat-value" id="valHeading">0.0°</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">GPS Distance</div>
+            <div class="stat-value" id="valGpsDist">142 m</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Vehicle & Velocity Control</h2>
+        <div class="control-row">
+          <div class="control-label">
+            <span>Vehicle Speed</span>
+            <span id="labelSpeed">0 km/h</span>
+          </div>
+          <input type="range" id="speedSlider" min="0" max="240" value="0">
+        </div>
+        <div class="control-row">
+          <div class="control-label">
+            <span>Player Elevation (Z)</span>
+            <span id="labelZ">10.0 m</span>
+          </div>
+          <input type="range" id="elevationSlider" min="0" max="30" value="10">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>HUD Ring Meters</h2>
+        <div class="control-row">
+          <div class="control-label">
+            <span>Health</span>
+            <span id="labelHealth">80%</span>
+          </div>
+          <input type="range" id="healthSlider" min="0" max="100" value="80">
+        </div>
+        <div class="control-row">
+          <div class="control-label">
+            <span>Armor</span>
+            <span id="labelArmor">65%</span>
+          </div>
+          <input type="range" id="armorSlider" min="0" max="100" value="65">
+        </div>
+        <div class="control-row">
+          <div class="control-label">
+            <span>Special Ability</span>
+            <span id="labelSpecial">90%</span>
+          </div>
+          <input type="range" id="specialSlider" min="0" max="100" value="90">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Tracked World Blips</h2>
+        <div class="blip-list" id="blipList"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <p>vhud-rs &bull; Pure Rust GTA V radar projection, Ray-AABB perimeter clamping, and Liang-Barsky GPS clipping engine.</p>
+  </footer>
+
+  <script>
+    // Pure mathematical implementation identical to vhud-rs
+    const canvas = document.getElementById('hudCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('container');
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // State
+    const state = {
+      shape: 'circular', // 'circular' or 'rectangular'
+      player: {
+        x: 0,
+        y: 0,
+        z: 10,
+        heading: 0, // radians, 0 = North (+Y)
+        speedKmh: 0,
+      },
+      zoom: {
+        current: 1.2,
+        target: 1.2,
+        onFoot: 1.2,
+        vehicleNormal: 0.75,
+        vehicleHighSpeed: 0.4,
+        thresholdKmh: 120.0,
+        maxKmh: 240.0,
+      },
+      meters: {
+        health: 80,
+        armor: 65,
+        special: 90,
+      },
+      blips: [
+        { id: 1, type: 'waypoint', x: 180, y: 220, z: 10, clamp: true, name: 'Purple Destination' },
+        { id: 2, type: 'cop', x: -60, y: 70, z: 12, clamp: true, name: 'LSPD Patrol', flashing: true },
+        { id: 3, type: 'mission', x: 260, y: -140, z: 25, clamp: true, name: 'Mission Objective' },
+        { id: 4, type: 'enemy', x: 45, y: -50, z: 4, clamp: false, name: 'Ballas Gang Member' },
+        { id: 5, type: 'enemy', x: -40, y: -45, z: 18, clamp: false, name: 'Sniper on Roof' },
+      ],
+      route: [
+        { x: 0, y: 0, z: 10 },
+        { x: 40, y: 60, z: 10 },
+        { x: 100, y: 90, z: 10 },
+        { x: 130, y: 160, z: 10 },
+        { x: 180, y: 220, z: 10 }
+      ],
+      keys: {},
+      isDragging: false,
+      lastMousePos: { x: 0, y: 0 }
+    };
+
+    // Math Functions from vhud-rs
+    function worldToRadarRel(wx, wy, px, py, heading) {
+      const dx = wx - px;
+      const dy = wy - py;
+      const cos = Math.cos(heading);
+      const sin = Math.sin(heading);
+      // Xr = dx*cos + dy*sin
+      // Yr = -dx*sin + dy*cos
+      return {
+        x: dx * cos + dy * sin,
+        y: -dx * sin + dy * cos
+      };
+    }
+
+    function radarRelToScreen(xr, yr, cx, cy, sz) {
+      return {
+        x: cx + xr * sz,
+        y: cy - yr * sz
+      };
+    }
+
+    function clampToRadarBorder(sx, sy, cx, cy, shape, margin) {
+      const ox = sx - cx;
+      const oy = sy - cy;
+      const borderAngle = Math.atan2(oy, ox);
+
+      if (shape === 'circular') {
+        const radius = 115 - margin;
+        const distSq = ox * ox + oy * oy;
+        if (distSq <= radius * radius) {
+          return { x: sx, y: sy, clamped: false, inside: true, angle: borderAngle };
+        } else {
+          const dist = Math.sqrt(distSq);
+          return {
+            x: cx + (ox / dist) * radius,
+            y: cy + (oy / dist) * radius,
+            clamped: true,
+            inside: false,
+            angle: borderAngle
+          };
+        }
+      } else {
+        // Rectangular
+        const hw = 140 - margin;
+        const hh = 90 - margin;
+        if (Math.abs(ox) <= hw && Math.abs(oy) <= hh) {
+          return { x: sx, y: sy, clamped: false, inside: true, angle: borderAngle };
+        } else {
+          const tx = Math.abs(ox) > 1e-5 ? hw / Math.abs(ox) : Infinity;
+          const ty = Math.abs(oy) > 1e-5 ? hh / Math.abs(oy) : Infinity;
+          const t = Math.min(tx, ty);
+          return {
+            x: cx + ox * t,
+            y: cy + oy * t,
+            clamped: true,
+            inside: false,
+            angle: borderAngle
+          };
+        }
+      }
+    }
+
+    // Liang-Barsky line clipping against AABB
+    function clipLiangBarsky(p0, p1, xmin, xmax, ymin, ymax) {
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      let t0 = 0.0;
+      let t1 = 1.0;
+      const p = [-dx, dx, -dy, dy];
+      const q = [p0.x - xmin, xmax - p0.x, p0.y - ymin, ymax - p0.y];
+
+      for (let i = 0; i < 4; i++) {
+        if (Math.abs(p[i]) < 1e-8) {
+          if (q[i] < 0) return null;
+        } else {
+          const r = q[i] / p[i];
+          if (p[i] < 0) {
+            if (r > t1) return null;
+            if (r > t0) t0 = r;
+          } else {
+            if (r < t0) return null;
+            if (r < t1) t1 = r;
+          }
+        }
+      }
+      if (t0 <= t1) {
+        return {
+          start: { x: p0.x + t0 * dx, y: p0.y + t0 * dy },
+          end: { x: p0.x + t1 * dx, y: p0.y + t1 * dy }
+        };
+      }
+      return null;
+    }
+
+    // Circular line clipping
+    function clipCircular(p0, p1, cx, cy, radius) {
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const fx = p0.x - cx;
+      const fy = p0.y - cy;
+      const a = dx * dx + dy * dy;
+      if (a < 1e-8) {
+        return (fx * fx + fy * fy <= radius * radius) ? { start: p0, end: p1 } : null;
+      }
+      const b = 2 * (fx * dx + fy * dy);
+      const c = (fx * fx + fy * fy) - radius * radius;
+      const disc = b * b - 4 * a * c;
+      if (disc < 0) return null;
+      const sq = Math.sqrt(disc);
+      let t0 = (-b - sq) / (2 * a);
+      let t1 = (-b + sq) / (2 * a);
+      if (t0 > t1) { const tmp = t0; t0 = t1; t1 = tmp; }
+      const ts = Math.max(0, t0);
+      const te = Math.min(1, t1);
+      if (ts <= te && te >= 0 && ts <= 1) {
+        return {
+          start: { x: p0.x + dx * ts, y: p0.y + dy * ts },
+          end: { x: p0.x + dx * te, y: p0.y + dy * te }
+        };
+      }
+      return null;
+    }
+
+    // Dynamic Zoom calculation
+    function computeTargetZoom(speedKmh) {
+      const speed = Math.max(0, speedKmh);
+      if (speed <= state.zoom.thresholdKmh) {
+        const t = speed / state.zoom.thresholdKmh;
+        return state.zoom.onFoot + (state.zoom.vehicleNormal - state.zoom.onFoot) * t;
+      } else {
+        const t = Math.min(1.0, (speed - state.zoom.thresholdKmh) / (state.zoom.maxKmh - state.zoom.thresholdKmh));
+        return state.zoom.vehicleNormal + (state.zoom.vehicleHighSpeed - state.zoom.vehicleNormal) * t;
+      }
+    }
+
+    // Input listeners
+    window.addEventListener('keydown', (e) => { state.keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', (e) => { state.keys[e.key.toLowerCase()] = false; });
+
+    canvas.addEventListener('mousedown', (e) => {
+      state.isDragging = true;
+      state.lastMousePos = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('mouseup', () => { state.isDragging = false; });
+    window.addEventListener('mousemove', (e) => {
+      if (state.isDragging) {
+        const dx = e.clientX - state.lastMousePos.x;
+        state.player.heading -= dx * 0.015;
+        state.lastMousePos = { x: e.clientX, y: e.clientY };
+      }
+    });
+
+    // UI Buttons
+    document.getElementById('btnCircular').addEventListener('click', () => {
+      state.shape = 'circular';
+      document.getElementById('btnCircular').classList.add('active');
+      document.getElementById('btnRectangular').classList.remove('active');
+    });
+
+    document.getElementById('btnRectangular').addEventListener('click', () => {
+      state.shape = 'rectangular';
+      document.getElementById('btnRectangular').classList.add('active');
+      document.getElementById('btnCircular').classList.remove('active');
+    });
+
+    document.getElementById('btnSpawnCop').addEventListener('click', () => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 70 + Math.random() * 80;
+      state.blips.push({
+        id: Date.now(),
+        type: 'cop',
+        x: state.player.x + Math.cos(angle) * dist,
+        y: state.player.y + Math.sin(angle) * dist,
+        z: state.player.z,
+        clamp: true,
+        name: 'Police Interceptor',
+        flashing: true
+      });
+    });
+
+    document.getElementById('btnRandomTarget').addEventListener('click', () => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 180 + Math.random() * 150;
+      const destX = state.player.x + Math.cos(angle) * dist;
+      const destY = state.player.y + Math.sin(angle) * dist;
+      state.route = [
+        { x: state.player.x, y: state.player.y, z: state.player.z },
+        { x: (state.player.x * 2 + destX) / 3, y: (state.player.y * 2 + destY) / 3 + 40, z: 10 },
+        { x: (state.player.x + destX * 2) / 3 + 30, y: (state.player.y + destY * 2) / 3, z: 10 },
+        { x: destX, y: destY, z: 10 }
+      ];
+      const wp = state.blips.find(b => b.type === 'waypoint');
+      if (wp) {
+        wp.x = destX;
+        wp.y = destY;
+      }
+    });
+
+    // Sliders
+    const speedSlider = document.getElementById('speedSlider');
+    speedSlider.addEventListener('input', (e) => {
+      state.player.speedKmh = parseFloat(e.target.value);
+      document.getElementById('labelSpeed').textContent = `${state.player.speedKmh.toFixed(0)} km/h`;
+    });
+
+    const elevationSlider = document.getElementById('elevationSlider');
+    elevationSlider.addEventListener('input', (e) => {
+      state.player.z = parseFloat(e.target.value);
+      document.getElementById('labelZ').textContent = `${state.player.z.toFixed(1)} m`;
+    });
+
+    const healthSlider = document.getElementById('healthSlider');
+    healthSlider.addEventListener('input', (e) => {
+      state.meters.health = parseFloat(e.target.value);
+      document.getElementById('labelHealth').textContent = `${state.meters.health}%`;
+    });
+
+    const armorSlider = document.getElementById('armorSlider');
+    armorSlider.addEventListener('input', (e) => {
+      state.meters.armor = parseFloat(e.target.value);
+      document.getElementById('labelArmor').textContent = `${state.meters.armor}%`;
+    });
+
+    const specialSlider = document.getElementById('specialSlider');
+    specialSlider.addEventListener('input', (e) => {
+      state.meters.special = parseFloat(e.target.value);
+      document.getElementById('labelSpecial').textContent = `${state.meters.special}%`;
+    });
+
+    let lastTime = performance.now();
+
+    // Main Simulation Loop
+    function update(time) {
+      const dt = Math.min(0.1, (time - lastTime) / 1000);
+      lastTime = time;
+
+      // Handle keyboard movement
+      let moveForward = 0;
+      let moveTurn = 0;
+      if (state.keys['w'] || state.keys['arrowup']) moveForward += 1;
+      if (state.keys['s'] || state.keys['arrowdown']) moveForward -= 1;
+      if (state.keys['a'] || state.keys['arrowleft']) moveTurn += 1;
+      if (state.keys['d'] || state.keys['arrowright']) moveTurn -= 1;
+
+      // Turn heading
+      state.player.heading += moveTurn * 2.2 * dt;
+
+      // Move player based on speed or WASD
+      let speedMs = (state.player.speedKmh / 3.6);
+      if (moveForward !== 0) {
+        const sprint = state.keys['shift'] ? 2.5 : 1.0;
+        speedMs += moveForward * (state.player.speedKmh > 0 ? speedMs : 15.0 * sprint);
+      }
+
+      if (speedMs > 0.1) {
+        // Forward direction in world coords:
+        // Heading 0 faces +Y. Heading -PI/2 faces +X.
+        // dx = -sin(heading), dy = cos(heading)
+        const dx = -Math.sin(state.player.heading);
+        const dy = Math.cos(state.player.heading);
+        state.player.x += dx * speedMs * dt;
+        state.player.y += dy * speedMs * dt;
+      }
+
+      // Smooth dynamic zoom lerp
+      const targetZ = computeTargetZoom(state.player.speedKmh);
+      state.zoom.target = targetZ;
+      state.zoom.current += (targetZ - state.zoom.current) * (1.0 - Math.exp(-4.0 * dt));
+
+      // Update HUD stats
+      document.getElementById('valSpeed').textContent = `${Math.round(state.player.speedKmh)} km/h`;
+      document.getElementById('valZoom').textContent = `${state.zoom.current.toFixed(2)}x`;
+      let deg = ((-state.player.heading * 180 / Math.PI) % 360);
+      if (deg < 0) deg += 360;
+      document.getElementById('valHeading').textContent = `${deg.toFixed(0)}°`;
+
+      // Draw Everything
+      render(time / 1000);
+
+      requestAnimationFrame(update);
+    }
+
+    function render(sec) {
+      const rect = container.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Center of minimap on screen (bottom-left area or centered for showcase)
+      const cx = w * 0.5;
+      const cy = h * 0.52;
+      const sz = state.zoom.current;
+
+      // Draw subtle background world street grid
+      ctx.save();
+      ctx.strokeStyle = '#141a24';
+      ctx.lineWidth = 1;
+      const gridSize = 40 * sz;
+      const offX = ((-state.player.x * sz) % gridSize + gridSize) % gridSize;
+      const offY = ((state.player.y * sz) % gridSize + gridSize) % gridSize;
+      for (let x = -gridSize; x <= w + gridSize; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x + offX, 0);
+        ctx.lineTo(x + offX, h);
+        ctx.stroke();
+      }
+      for (let y = -gridSize; y <= h + gridSize; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + offY);
+        ctx.lineTo(w, y + offY);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Setup Minimap Clipping Region
+      ctx.save();
+      ctx.beginPath();
+      if (state.shape === 'circular') {
+        ctx.arc(cx, cy, 115, 0, Math.PI * 2);
+      } else {
+        ctx.rect(cx - 140, cy - 90, 280, 180);
+      }
+      ctx.clip();
+
+      // Minimap Background
+      ctx.fillStyle = 'rgba(10, 14, 20, 0.94)';
+      ctx.fill();
+
+      // Draw Map Features (Streets & Water inside radar)
+      ctx.save();
+      ctx.translate(cx, cy);
+      // Street paths relative to player
+      ctx.strokeStyle = '#222d3d';
+      ctx.lineWidth = 12 * sz;
+      ctx.beginPath();
+      // Draw a cross road
+      const rH0 = worldToRadarRel(state.player.x - 300, 0, state.player.x, state.player.y, state.player.heading);
+      const rH1 = worldToRadarRel(state.player.x + 300, 0, state.player.x, state.player.y, state.player.heading);
+      ctx.moveTo(rH0.x * sz, -rH0.y * sz);
+      ctx.lineTo(rH1.x * sz, -rH1.y * sz);
+
+      const rV0 = worldToRadarRel(0, state.player.y - 300, state.player.x, state.player.y, state.player.heading);
+      const rV1 = worldToRadarRel(0, state.player.y + 300, state.player.x, state.player.y, state.player.heading);
+      ctx.moveTo(rV0.x * sz, -rV0.y * sz);
+      ctx.lineTo(rV1.x * sz, -rV1.y * sz);
+      ctx.stroke();
+
+      // GPS Route Line Rendering with Clipping
+      ctx.restore(); // restore from translate
+
+      // Compute screen coordinates of route waypoints
+      const screenWps = state.route.map(wp => {
+        const r = worldToRadarRel(wp.x, wp.y, state.player.x, state.player.y, state.player.heading);
+        return radarRelToScreen(r.x, r.y, cx, cy, sz);
+      });
+
+      // Clip and draw GPS segments
+      ctx.strokeStyle = 'rgba(157, 78, 221, 0.85)';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (let i = 0; i < screenWps.length - 1; i++) {
+        let clipped = null;
+        if (state.shape === 'circular') {
+          clipped = clipCircular(screenWps[i], screenWps[i+1], cx, cy, 115);
+        } else {
+          clipped = clipLiangBarsky(screenWps[i], screenWps[i+1], cx - 140, cx + 140, cy - 90, cy + 90);
+        }
+
+        if (clipped) {
+          ctx.beginPath();
+          ctx.moveTo(clipped.start.x, clipped.start.y);
+          ctx.lineTo(clipped.end.x, clipped.end.y);
+          ctx.stroke();
+
+          // Draw chevrons along visible segment
+          const dx = clipped.end.x - clipped.start.x;
+          const dy = clipped.end.y - clipped.start.y;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len > 30) {
+            const angle = Math.atan2(dy, dx);
+            const numArrows = Math.floor(len / 35);
+            for (let a = 1; a <= numArrows; a++) {
+              const ax = clipped.start.x + (dx * a) / (numArrows + 1);
+              const ay = clipped.start.y + (dy * a) / (numArrows + 1);
+              drawChevron(ax, ay, angle);
+            }
+          }
+        }
+      }
+
+      // Draw Center Player Arrow
+      ctx.save();
+      ctx.translate(cx, cy);
+      // North is always relative to player view on radar
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -9);
+      ctx.lineTo(7, 7);
+      ctx.lineTo(0, 3);
+      ctx.lineTo(-7, 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore(); // restore clipping
+
+      // Draw Radar Perimeter Ring & HUD Meter Arcs
+      drawHudRings(cx, cy, sec);
+
+      // Render Blips & Clamping
+      renderBlips(cx, cy, sz, sec);
+
+      // Calculate Remaining Distance to Destination
+      const dest = state.route[state.route.length - 1];
+      const distToDest = Math.hypot(dest.x - state.player.x, dest.y - state.player.y);
+      document.getElementById('valGpsDist').textContent = `${Math.round(distToDest)} m`;
+    }
+
+    function drawChevron(x, y, angle) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-4, -4);
+      ctx.lineTo(3, 0);
+      ctx.lineTo(-4, 4);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawHudRings(cx, cy, sec) {
+      ctx.save();
+      if (state.shape === 'circular') {
+        const rIn = 117;
+        const rOut = 124;
+
+        // Outer Border
+        ctx.strokeStyle = '#22272e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 115, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Health Arc (Bottom Left: PI to PI/2)
+        const hGap = 0.05;
+        const healthStart = Math.PI - 0.02;
+        const healthEnd = Math.PI * 0.5 + hGap;
+        const healthPct = state.meters.health / 100;
+        const healthFillEnd = healthStart + (healthEnd - healthStart) * healthPct;
+
+        // Health Background
+        ctx.strokeStyle = 'rgba(20, 40, 20, 0.6)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 120, healthStart, healthEnd, true);
+        ctx.stroke();
+
+        // Health Active Arc
+        const isCritical = state.meters.health <= 25;
+        let healthColor = '#38b000';
+        if (isCritical) {
+          const flash = Math.sin(sec * 18) > 0;
+          healthColor = flash ? '#e63946' : '#590d22';
+        }
+        ctx.strokeStyle = healthColor;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 120, healthStart, healthFillEnd, true);
+        ctx.stroke();
+
+        // Armor Arc (Bottom Right: PI/2 to 0)
+        const armorStart = Math.PI * 0.5 - hGap;
+        const armorEnd = 0.02;
+        const armorPct = state.meters.armor / 100;
+        const armorFillEnd = armorStart + (armorEnd - armorStart) * armorPct;
+
+        // Armor Background
+        ctx.strokeStyle = 'rgba(10, 30, 60, 0.6)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 120, armorStart, armorEnd, true);
+        ctx.stroke();
+
+        // Armor Active Arc
+        ctx.strokeStyle = '#0077b6';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 120, armorStart, armorFillEnd, true);
+        ctx.stroke();
+
+        // Special Ability Arc (Outer thin arc)
+        const specPct = state.meters.special / 100;
+        const specFillEnd = healthStart + (healthEnd - healthStart) * specPct;
+        ctx.strokeStyle = 'rgba(255, 183, 3, 0.9)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 126, healthStart, specFillEnd, true);
+        ctx.stroke();
+
+        // North Indicator at top
+        const northAngle = state.player.heading;
+        const nx = cx + Math.sin(northAngle) * 115;
+        const ny = cy - Math.cos(northAngle) * 115;
+        ctx.fillStyle = '#f0f6fc';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('N', nx, ny);
+
+      } else {
+        // Rectangular Border
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(cx - 140, cy - 90, 280, 180);
+
+        // Rectangular Health and Armor Bars directly below
+        const barY = cy + 96;
+        const barW = 135;
+        const barH = 5;
+
+        // Health Bar (Left)
+        ctx.fillStyle = 'rgba(20, 40, 20, 0.6)';
+        ctx.fillRect(cx - 140, barY, barW, barH);
+        const isCritical = state.meters.health <= 25;
+        ctx.fillStyle = isCritical ? (Math.sin(sec * 18) > 0 ? '#e63946' : '#590d22') : '#38b000';
+        ctx.fillRect(cx - 140, barY, barW * (state.meters.health / 100), barH);
+
+        // Armor Bar (Right)
+        ctx.fillStyle = 'rgba(10, 30, 60, 0.6)';
+        ctx.fillRect(cx + 5, barY, barW, barH);
+        ctx.fillStyle = '#0077b6';
+        ctx.fillRect(cx + 5, barY, barW * (state.meters.armor / 100), barH);
+
+        // Special Bar underneath
+        ctx.fillStyle = 'rgba(255, 183, 3, 0.9)';
+        ctx.fillRect(cx - 140, barY + 8, 280 * (state.meters.special / 100), 3);
+      }
+      ctx.restore();
+    }
+
+    function renderBlips(cx, cy, sz, sec) {
+      const blipListEl = document.getElementById('blipList');
+      let html = '';
+
+      state.blips.forEach(blip => {
+        // 1. World to Radar Rel
+        const r = worldToRadarRel(blip.x, blip.y, state.player.x, state.player.y, state.player.heading);
+        // 2. Radar to Screen
+        const rawScreen = radarRelToScreen(r.x, r.y, cx, cy, sz);
+        // 3. Edge Clamping
+        const clamp = clampToRadarBorder(rawScreen.x, rawScreen.y, cx, cy, state.shape, 8);
+
+        if (!clamp.inside && !blip.clamp) {
+          // Off-screen non-critical blip omitted
+          return;
+        }
+
+        const deltaZ = blip.z - state.player.z;
+        let altType = 'level';
+        if (deltaZ > 3.5) altType = 'above';
+        else if (deltaZ < -3.5) altType = 'below';
+
+        // Blip Color
+        let color = '#ffffff';
+        if (blip.type === 'waypoint') color = '#9d4edd';
+        else if (blip.type === 'cop') {
+          color = (blip.flashing && Math.sin(sec * 10) > 0) ? '#e63946' : '#0077b6';
+        } else if (blip.type === 'mission') color = '#ffb703';
+        else if (blip.type === 'enemy') color = '#e63946';
+
+        // Render Blip Icon
+        ctx.save();
+        ctx.translate(clamp.x, clamp.y);
+
+        if (clamp.clamped) {
+          // Perimeter arrow pointing outwards towards off-screen target
+          ctx.rotate(clamp.angle);
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(8, 0);
+          ctx.lineTo(-4, -6);
+          ctx.lineTo(-2, 0);
+          ctx.lineTo(-4, 6);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // Normal inside icon
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          if (blip.type === 'waypoint') {
+            ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          } else if (blip.type === 'cop') {
+            ctx.rect(-5, -5, 10, 10);
+          } else if (blip.type === 'mission') {
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+          } else {
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          }
+          ctx.fill();
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Altitude Triangle Indicator (Above or Below)
+          if (altType === 'above') {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(0, -11);
+            ctx.lineTo(5, -6);
+            ctx.lineTo(-5, -6);
+            ctx.closePath();
+            ctx.fill();
+          } else if (altType === 'below') {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(0, 11);
+            ctx.lineTo(5, 6);
+            ctx.lineTo(-5, 6);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // Append to sidebar blip list
+        html += `
+          <div class="blip-item ${blip.type}">
+            <span>${blip.name}</span>
+            <div>
+              <span class="tag ${clamp.clamped ? 'tag-clamped' : 'tag-inside'}">
+                ${clamp.clamped ? 'CLAMPED' : 'INSIDE'}
+              </span>
+              ${altType !== 'level' ? `<span class="tag" style="background:#21262d;color:#f0f6fc;">${altType.toUpperCase()}</span>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      blipListEl.innerHTML = html;
+    }
+
+    // Start simulation
+    requestAnimationFrame(update);
+  </script>
+</body>
+</html>
