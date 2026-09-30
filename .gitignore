@@ -2,3 +2,5 @@
 **/*.rs.bk
 Cargo.lock
 .DS_Store
+coverage_report
+target/coverage
